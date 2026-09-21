@@ -9,7 +9,7 @@
    端末では古いキャッシュがそのまま表示され続けます（バイト単位で同一の sw.js は
    ブラウザに「更新なし」と判定されるため）。
 */
-const VERSION = 'v1.2.1';
+const VERSION = 'v1.3.0';
 const SHELL = `shell-${VERSION}`;
 const DATA  = `data-${VERSION}`;
 

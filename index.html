@@ -283,9 +283,10 @@
     /* ── 雨雲レーダー 再生コントロール ── */
     .radar-ctrl { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
     .radar-ctrl button { width: 34px; height: 34px; border-radius: 50%; background: var(--red); color: #fff; font-size: 15px; flex-shrink: 0; }
-    .radar-ctrl .frames { flex: 1; height: 5px; background: #eee; border-radius: 3px; position: relative; overflow: hidden; }
-    .radar-ctrl .frames i { position: absolute; top: 0; bottom: 0; background: var(--red); border-radius: 3px; transition: left .25s; }
-    .radar-ctrl .time { font-size: 11px; color: var(--muted); min-width: 76px; text-align: right; }
+    .radar-ctrl .frames { flex: 1; height: 5px; background: #eee; border-radius: 3px; position: relative; }
+    .radar-ctrl .frames i#radarFramesBar { position: absolute; top: 0; bottom: 0; background: var(--red); border-radius: 3px; transition: left .25s; }
+    .radar-ctrl .frames i#radarNowMark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text); opacity: .5; transform: translateX(-1px); }
+    .radar-ctrl .time { font-size: 11px; color: var(--muted); min-width: 108px; text-align: right; }
 
     /* ── 画像保存（時刻表など） ── */
     .img-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 8px; }
@@ -441,9 +442,10 @@
     <div class="mapwrap"><div class="leafletmap" id="rainMap"></div></div>
     <div class="radar-ctrl">
       <button id="radarPlay">▶</button>
-      <div class="frames" id="radarFrames"><i id="radarFramesBar" style="left:0;width:16.6%"></i></div>
+      <div class="frames" id="radarFrames"><i id="radarFramesBar" style="left:0;width:16.6%"></i><i id="radarNowMark" style="display:none;left:50%"></i></div>
       <span class="time" id="nowcastTime">—</span>
     </div>
+    <p class="sub" style="margin:4px 0 0">縦線が「現在」の位置。左が実況（過去）、右が予報です。</p>
     <div class="legend">
       <span><i style="background:#a0d2ff"></i>1mm</span>
       <span><i style="background:#218cff"></i>5mm</span>
@@ -1134,13 +1136,24 @@ async function fetchAmedasPoint(stationId) {
 }
 
 async function fetchNowcastTimes() {
-  const out = { basetime:null, validtime:null, frames:[] };
+  const out = { basetime:null, validtime:null, frames:[], nowIdx: -1 };
   try {
-    const js = await fetch('https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json').then(r => r.json());
-    if (Array.isArray(js) && js.length) {
-      const last = js[js.length-1];
+    const [n1, n2] = await Promise.all([
+      fetch('https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json').then(r => r.json()).catch(() => []),
+      fetch('https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N2.json').then(r => r.json()).catch(() => [])
+    ]);
+    const past = Array.isArray(n1) ? n1.map(x => ({ basetime: x.basetime, validtime: x.validtime, future: false })) : [];
+    // N2（予報コマ）には直近の実況と重複する時刻が含まれるため、実況の最終時刻より後のものだけを追加する
+    const lastObservedValid = past.length ? past[past.length - 1].validtime : null;
+    const forecast = Array.isArray(n2)
+      ? n2.filter(x => !lastObservedValid || x.validtime > lastObservedValid)
+          .map(x => ({ basetime: x.basetime, validtime: x.validtime, future: true }))
+      : [];
+    out.frames = [...past, ...forecast];
+    out.nowIdx = past.length - 1; // 実況の最後＝「現在」の位置
+    if (out.frames.length) {
+      const last = past.length ? past[past.length - 1] : out.frames[0];
       out.basetime = last.basetime; out.validtime = last.validtime;
-      out.frames = js.slice(-6).map(x => ({ basetime: x.basetime, validtime: x.validtime }));
     }
   } catch {}
   return out;
@@ -1730,15 +1743,17 @@ let rainMap = null, rainLayers = [], rainMapCenter = null;
 let rainBaseLayer = null, rainOverlayLayer = null, rainFramesKey = '';
 let radarFrames = [], radarIdx = 0, radarPlaying = false, radarTimer = null;
 
+let radarNowIdx = -1;
 function buildRainMap() {
   const c = State.here ? [State.here.lat, State.here.lon] : [35.681, 139.767];
   const sameCenter = rainMap && rainMapCenter && rainMapCenter[0] === c[0] && rainMapCenter[1] === c[1];
-  const frames = State.now?.nowcast?.frames || [];
+  const nc = State.now?.nowcast;
+  const frames = nc?.frames || [];
   const framesKey = frames.map(f => f.validtime).join(',');
 
   if (sameCenter) {
     rainMap.invalidateSize();
-    if (framesKey !== rainFramesKey) applyRadarFrames(frames, framesKey);
+    if (framesKey !== rainFramesKey) applyRadarFrames(frames, framesKey, nc?.nowIdx ?? -1);
     return;
   }
   if (rainMap) { rainMap.remove(); rainMap = null; }
@@ -1748,11 +1763,12 @@ function buildRainMap() {
   rainBaseLayer = cachedLayer(CFG.gsiPale, { group: 'nowcast', saveTiles: false, maxZoom: 16, attribution: '国土地理院' });
   rainBaseLayer.addTo(rainMap);
   rainFramesKey = ''; // 強制的に反映させるため一旦リセット
-  applyRadarFrames(frames, framesKey);
+  applyRadarFrames(frames, framesKey, nc?.nowIdx ?? -1);
 }
-function applyRadarFrames(frames, framesKey) {
+function applyRadarFrames(frames, framesKey, nowIdx) {
   radarFrames = frames;
-  radarIdx = radarFrames.length - 1;
+  radarNowIdx = nowIdx >= 0 && nowIdx < frames.length ? nowIdx : frames.length - 1;
+  radarIdx = radarNowIdx;
   rainFramesKey = framesKey;
   if (rainOverlayLayer) { rainMap.removeLayer(rainOverlayLayer); rainOverlayLayer = null; }
   if (radarFrames.length) {
@@ -1778,8 +1794,20 @@ function renderRadarUI() {
   const n = radarFrames.length;
   const bar = $('#radarFramesBar');
   if (bar && n > 1) { bar.style.width = (100 / n) + '%'; bar.style.left = (radarIdx / n * 100) + '%'; }
+  const nowMark = $('#radarNowMark');
+  if (nowMark) {
+    if (n > 1 && radarNowIdx >= 0) { nowMark.style.left = ((radarNowIdx + 1) / n * 100) + '%'; nowMark.style.display = 'block'; }
+    else nowMark.style.display = 'none';
+  }
   const t = $('#nowcastTime');
-  if (t) t.textContent = radarFrames[radarIdx]?.validtime ? jstShort(isoFromCompact(radarFrames[radarIdx].validtime)) : '時刻不明';
+  const f = radarFrames[radarIdx];
+  if (t) {
+    if (!f) t.textContent = '時刻不明';
+    else {
+      const label = f.future ? '予報' : (radarIdx === radarNowIdx ? '現在' : '実況');
+      t.textContent = `${label} ${jstShort(isoFromCompact(f.validtime))}`;
+    }
+  }
 }
 function setRadarFrame(idx) {
   if (!radarFrames.length || !rainOverlayLayer) return;
@@ -1799,6 +1827,21 @@ function stopRadarPlay() {
   radarPlaying = false;
   if (radarTimer) { clearInterval(radarTimer); radarTimer = null; }
   renderRadarUI();
+}
+
+let radarAutoTimer = null;
+function startRadarAutoRefresh() {
+  stopRadarAutoRefresh();
+  radarAutoTimer = setInterval(async () => {
+    if (!State.now || State.offline) return;
+    const nc = await fetchNowcastTimes();
+    if (!nc.frames.length) return;
+    State.now.nowcast = nc;
+    buildRainMap(); // フレームに変化がなければ内部で何もしない
+  }, 2 * 60 * 1000); // 気象庁のナウキャストは5分更新のため、2分おきに確認
+}
+function stopRadarAutoRefresh() {
+  if (radarAutoTimer) { clearInterval(radarAutoTimer); radarAutoTimer = null; }
 }
 
 let hazMap = null, hazBase = null, hazOverlays = {}, hazMarkers = null, hazMapCenter = null;
@@ -1913,7 +1956,8 @@ function showTab(name) {
   for (const s of ['home','rain','dosha','map','set']) $('#tab-' + s).hidden = (s !== name);
   $$('nav button').forEach(b => b.setAttribute('aria-current', b.dataset.tab === name ? 'page' : 'false'));
   window.scrollTo({ top: 0, behavior: 'auto' });
-  if (name === 'rain') setTimeout(buildRainMap, 40); else stopRadarPlay();
+  if (name === 'rain') { setTimeout(buildRainMap, 40); startRadarAutoRefresh(); }
+  else { stopRadarPlay(); stopRadarAutoRefresh(); }
   if (name === 'dosha') setTimeout(buildHazardMap, 40);
   if (name === 'map') setTimeout(buildPlaceMap, 40);
   if (name === 'set') renderCacheInfo();
