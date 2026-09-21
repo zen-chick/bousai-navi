@@ -3,8 +3,13 @@
    - data/*.json（地域・火山の全国マスターデータ）: network first → 失敗時キャッシュ
    - 気象庁・国土地理院への直接リクエストはSWを素通りさせる（アプリ側のIndexedDB/localStorageが担当）
    - 地図タイル: ここでは扱わない（アプリ側の IndexedDB が担当）
+
+   【重要】index.html や manifest.json などシェルファイルを更新するたびに、
+   下の VERSION を必ず書き換えてください。変更しないと、既に開いたことのある
+   端末では古いキャッシュがそのまま表示され続けます（バイト単位で同一の sw.js は
+   ブラウザに「更新なし」と判定されるため）。
 */
-const VERSION = 'v1.0.0';
+const VERSION = 'v1.2.0';
 const SHELL = `shell-${VERSION}`;
 const DATA  = `data-${VERSION}`;
 
