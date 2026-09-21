@@ -129,7 +129,7 @@
       display: flex; align-items: flex-start; gap: 9px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 14px;
     }
     .ckl li:last-child, .check:last-child { border-bottom: none; }
-    .ckl input[type=checkbox], .check input[type=checkbox], .bag-chk, .hz-chk, .sv-chk {
+    .ckl input[type=checkbox], .check input[type=checkbox], .hz-chk, .sv-chk {
       width: 17px; height: 17px; flex-shrink: 0; margin-top: 2px; accent-color: var(--red); cursor: pointer;
     }
     .ckl label, .check span { cursor: pointer; line-height: 1.4; font-size: 14px; }
@@ -392,6 +392,9 @@
       <div class="lv-l" id="volText">—</div>
     </div>
     <div class="sub" id="volUpdated" style="margin-top:6px"></div>
+    <div class="btnbar">
+      <a class="btn btn-gray btn-sm" id="volJmaLink" href="https://www.jma.go.jp/bosai/map.html#5/35/140/&elem=volcano&contents=volcano" target="_blank" rel="noopener">気象庁で最新情報を見る</a>
+    </div>
   </div>
 
   <div class="card">
@@ -515,6 +518,9 @@
   <div class="card" id="volScaleWrap" hidden>
     <h2>噴火警戒レベル: <span id="volScaleName"></span></h2>
     <div id="volScale"></div>
+    <div class="btnbar">
+      <a class="btn btn-gray btn-sm" id="volJmaLink2" href="https://www.jma.go.jp/bosai/map.html#5/35/140/&elem=volcano&contents=volcano" target="_blank" rel="noopener">気象庁で最新情報を見る</a>
+    </div>
   </div>
 
 </section>
@@ -528,34 +534,33 @@
       <button data-view="place" aria-pressed="true">スポット</button>
       <button data-view="route" aria-pressed="false">ルート</button>
     </div>
-    <div class="mapwrap" style="margin-top:10px"><div class="leafletmap" id="placeMap"></div></div>
-    <div class="btnbar" id="gmapActions"></div>
-    <p class="sub" style="margin:8px 0 0">地図は国土地理院のタイル（無料・登録不要）を使用しています。実際のナビは「Googleマップで開く」からアプリ・サイトに移動してご利用ください。</p>
-  </div>
 
-  <div class="card" id="routePanel" hidden>
-    <h2>ルート</h2>
-    <label class="f" for="routeFrom">出発地</label>
-    <select id="routeFrom"></select>
-    <label class="f" for="routeTo">目的地</label>
-    <select id="routeTo"></select>
-    <div class="seg" id="routeModeSeg" style="margin-top:10px">
-      <button data-mode="driving" aria-pressed="true">車</button>
-      <button data-mode="walking" aria-pressed="false">徒歩</button>
-      <button data-mode="bicycling" aria-pressed="false">自転車</button>
+    <div class="mapwrap" style="margin-top:10px"><div class="leafletmap" id="placeMap"></div></div>
+
+    <div id="routeControls" hidden>
+      <label class="f" for="routeFrom">出発地</label>
+      <select id="routeFrom"></select>
+      <label class="f" for="routeTo">目的地</label>
+      <select id="routeTo"></select>
+      <div class="seg" id="routeModeSeg" style="margin-top:10px">
+        <button data-mode="driving" aria-pressed="true">車</button>
+        <button data-mode="walking" aria-pressed="false">徒歩</button>
+        <button data-mode="bicycling" aria-pressed="false">自転車</button>
+      </div>
     </div>
+
+    <div class="btnbar" id="gmapActions"></div>
     <div class="btnbar">
-      <button class="btn btn-primary btn-sm" id="routeGo">Googleマップでルートを開く</button>
-      <button class="btn btn-gray btn-sm" id="routeTransit">乗換を調べる</button>
+      <button class="btn btn-gray btn-sm" id="addSpotBtn">＋ スポットを追加</button>
     </div>
-    <p class="sub" style="margin:10px 0 0">経路検索はAPIキー不要のGoogleマップ連携リンクを使っています（無料・登録不要）。タップするとGoogleマップアプリまたはサイトが開きます。</p>
+    <p class="sub" style="margin:8px 0 0">地図は国土地理院のタイル（無料・登録不要）を使用しています。経路検索はAPIキー不要のGoogleマップ連携リンクです。タップするとGoogleマップアプリ・サイトに移動します。</p>
   </div>
 
   <div class="card">
     <h2>スポット<span class="aside" id="spotCount"></span></h2>
     <div id="spotList"></div>
     <div class="btnbar">
-      <button class="btn btn-primary btn-sm" id="addSpotBtn">スポットを追加</button>
+      <button class="btn btn-primary btn-sm" id="addSpotBtn2">スポットを追加</button>
       <button class="btn btn-gray btn-sm" id="exportSpotsBtn">書き出し</button>
     </div>
     <p class="sub" style="margin:10px 0 0">Googleマップの「保存済み」はアプリから読めないため、ここに登録した分がこのアプリのスター付きになります。Googleマップで共有したリンクを貼ると座標を取り込めます。</p>
@@ -581,11 +586,6 @@
   <div class="card">
     <h2>緊急連絡先</h2>
     <div id="telList"></div>
-  </div>
-
-  <div class="card">
-    <h2>非常持出袋<span class="aside" id="bagCount"></span></h2>
-    <div id="bagList"></div>
   </div>
 
   <div class="card">
@@ -635,6 +635,27 @@
     <p class="sub">バージョン 1.0.0 ／ 全国対応（現在地連動）<br>
     気象・防災データは気象庁、地図は国土地理院・ハザードマップポータルの公開データを、ブラウザから直接取得しています。サーバー側の定期取得は行っていないため、常に最新の値が表示されます（オフライン保存した地域を除く）。<br>
     リアルタイムの避難判断は必ず市区町村の避難情報と気象庁の発表を確認してください。</p>
+  </div>
+
+  <div class="card">
+    <h2>クレジット</h2>
+    <div class="op">
+      <div class="nm"><b>気象庁データ</b><span>予報・警報・アメダス・雨雲レーダー・火山情報</span></div>
+      <a class="icon-btn" href="https://www.data.jma.go.jp/developer/index.html" target="_blank" rel="noopener">開く</a>
+    </div>
+    <div class="op">
+      <div class="nm"><b>国土地理院</b><span>地図タイル・ハザードマップ（浸水想定・土砂災害警戒区域など）</span></div>
+      <a class="icon-btn" href="https://www.gsi.go.jp/kikakuchousei/kikakuchousei40182.html" target="_blank" rel="noopener">開く</a>
+    </div>
+    <div class="op">
+      <div class="nm"><b>ハザードマップポータルサイト</b><span>国土交通省・重ねるハザードマップ</span></div>
+      <a class="icon-btn" href="https://disaportal.gsi.go.jp/" target="_blank" rel="noopener">開く</a>
+    </div>
+    <div class="op">
+      <div class="nm"><b>Leaflet</b><span>地図表示ライブラリ（オープンソース）</span></div>
+      <a class="icon-btn" href="https://leafletjs.com/" target="_blank" rel="noopener">開く</a>
+    </div>
+    <p class="sub" style="margin-top:10px">経路検索・スポット表示はGoogleマップへのリンク（APIキー不要）を使用しています。データの著作権は各提供元に帰属します。</p>
   </div>
 
 </section>
@@ -753,9 +774,6 @@ const CFG = {
     { n:'消防・救急', s:'火災・救急', t:'119' },
     { n:'災害用伝言ダイヤル', s:'安否確認', t:'171' }
   ],
-  bag: ['飲料水（500ml×6本）','非常食（3日分）','救急セット・常備薬','懐中電灯・予備電池',
-        '携帯ラジオ（手回し充電）','モバイルバッテリー','現金（小銭を含む）','重要書類のコピー',
-        '雨具・着替え','マスク・ゴーグル','行き先の地図（紙）・宿泊先の住所メモ'],
   rainGuide: [
     ['1時間 20mm〜','注意報の目安','advisory'],
     ['1時間 30mm〜','警報の目安','warning'],
@@ -824,6 +842,55 @@ function toast(msg) {
   t.textContent = msg; t.classList.add('on');
   clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 2200);
 }
+
+/* スワイプ削除（左にスライドすると削除。ボタンでの削除も引き続き使えます） */
+function makeSwipeable(el, onDelete) {
+  const THRESHOLD = 80;
+  let startX = 0, startY = 0, dx = 0, dragging = false, decided = false, horizontal = false;
+  el.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+    dx = 0; dragging = true; decided = false; horizontal = false;
+    el.style.transition = 'none';
+  }, { passive: true });
+  el.addEventListener('touchmove', e => {
+    if (!dragging) return;
+    const x = e.touches[0].clientX, y = e.touches[0].clientY;
+    const ddx = x - startX, ddy = y - startY;
+    if (!decided) {
+      if (Math.abs(ddx) > 8 || Math.abs(ddy) > 8) { decided = true; horizontal = Math.abs(ddx) > Math.abs(ddy); }
+    }
+    if (!horizontal) return;
+    if (e.cancelable) e.preventDefault();
+    dx = Math.min(0, ddx);
+    el.style.transform = `translateX(${dx}px)`;
+    el.style.opacity = String(Math.max(0, 1 + dx / 300));
+  }, { passive: false });
+  el.addEventListener('touchend', () => {
+    if (!dragging) return;
+    dragging = false;
+    el.style.transition = 'transform .2s ease, opacity .2s ease';
+    if (dx < -THRESHOLD) {
+      el.style.transform = 'translateX(-100%)';
+      el.style.opacity = '0';
+      setTimeout(onDelete, 180);
+    } else {
+      el.style.transform = 'translateX(0)';
+      el.style.opacity = '1';
+    }
+  });
+  el.addEventListener('touchcancel', () => {
+    dragging = false;
+    el.style.transition = 'transform .2s ease, opacity .2s ease';
+    el.style.transform = 'translateX(0)'; el.style.opacity = '1';
+  });
+}
+function attachSwipeDelete(container, onDeleteId) {
+  if (!container) return;
+  container.querySelectorAll(':scope > .item[data-swipe-id]').forEach(el => {
+    makeSwipeable(el, () => onDeleteId(el.dataset.swipeId));
+  });
+}
 function jstShort(iso) {
   if (!iso) return '—';
   try { return new Date(iso).toLocaleString('ja-JP', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' }); }
@@ -848,7 +915,6 @@ const State = {
   now: null,
   spots: store.get('spots', []),
   souvenirs: store.get('souvenirs', []),
-  bag: store.get('bag', {}),
   images: store.get('imageIds', []),       // [{id, name, savedAt}] — 画像本体は ImageDB(IndexedDB) に格納
   snapshots: store.get('snapshots', []),   // [{ id, name, pref, lat, lon, regionCode, savedAt, now }]
   mapView: 'place', routeMode: 'driving', selectedSpot: null,
@@ -1001,6 +1067,7 @@ async function fetchWarnings(code) {
           const st = w.status || '';
           if (['解除','なし',''].includes(st)) continue;
           const wcode = String(w.code || '');
+          if (!wcode) continue; // コードが空＝実質的に発表なし。「警報等()」のような表示を避けるためスキップ
           const name = WARNING_NAMES[wcode] || `警報等(${wcode})`;
           const cond = (w.condition || '').trim();
           let lv = 'advisory';
@@ -1082,7 +1149,7 @@ async function fetchNowcastTimes() {
 async function fetchVolcano(nearVolcano) {
   if (!nearVolcano) return null;
   const labels = { 1:'活火山であることに留意', 2:'火口周辺規制', 3:'入山規制', 4:'高齢者等避難', 5:'避難' };
-  const out = { name: nearVolcano.name, level: null, text: '', updated: null };
+  const out = { name: nearVolcano.name, lat: nearVolcano.lat, lon: nearVolcano.lon, level: null, text: '', updated: null };
   try {
     const js = await fetch('https://www.jma.go.jp/bosai/volcano/data/forecast/volcano.json').then(r => r.json());
     if (Array.isArray(js)) {
@@ -1127,8 +1194,9 @@ async function fetchNow(lat, lon) {
    1時間・3時間・24時間雨量と発表中の警報から算出。
    全国版では観測履歴を保持しないため、先行7日雨量の項は含めない。
    ===================================================================== */
-function riskParts(flags) {
-  const a = State.now?.amedas || {};
+function riskParts(flags, override) {
+  const a = override?.amedas || State.now?.amedas || {};
+  const warnings = override?.warnings || State.now?.warnings || [];
   const r1 = a.rain1h || 0, r3 = a.rain3h || 0, r24 = a.rain24h || 0;
   const parts = [
     { k: '1時間雨量',  mm: r1,  p: Math.min(35, r1 * 1.15) },
@@ -1136,7 +1204,7 @@ function riskParts(flags) {
     { k: '24時間雨量', mm: r24, p: Math.min(25, r24 * 0.125) }
   ];
   let bonus = 0, why = [];
-  for (const w of (State.now?.warnings || [])) {
+  for (const w of warnings) {
     const n = w.name || '';
     if (n.includes('特別警報') && n.includes('大雨')) { bonus = Math.max(bonus, 40); why.push('大雨特別警報'); }
     else if (n.includes('大雨警報') || n.includes('洪水警報')) { bonus = Math.max(bonus, 15); why.push(n); }
@@ -1296,6 +1364,8 @@ function renderVolcanoCard() {
   $('#volCard').className = 'vol-card vol-lv' + lv;
   $('#volText').textContent = v.text || '—';
   $('#volUpdated').textContent = v.updated ? jstShort(v.updated) + ' 時点（気象庁）' : '最新は気象庁サイトでご確認ください';
+  const zoom = (v.lat != null) ? `9/${v.lat}/${v.lon}` : '5/35/140';
+  $('#volJmaLink').href = `https://www.jma.go.jp/bosai/map.html#${zoom}/&elem=volcano&contents=volcano`;
 }
 
 /* ---------- おみやげ ---------- */
@@ -1305,7 +1375,7 @@ function renderSouvenirs() {
   if (!list.length) { el.innerHTML = '<div class="empty">まだ登録がありません。行き先で買いたいものを追加しておけます。</div>'; return; }
   el.innerHTML = list.map(s => {
     const spot = State.spots.find(x => x.id === s.spotId);
-    return `<div class="item">
+    return `<div class="item" data-swipe-id="${s.id}">
       <input type="checkbox" class="sv-chk" data-id="${s.id}" ${s.done ? 'checked' : ''} style="width:19px;height:19px;margin-top:3px;accent-color:var(--red)">
       <div class="body">
         <b style="${s.done ? 'color:var(--muted);text-decoration:line-through' : ''}">${esc(s.name)}</b>
@@ -1315,6 +1385,7 @@ function renderSouvenirs() {
       <button class="icon-btn sv-del" data-id="${s.id}" aria-label="削除">✕</button>
     </div>`;
   }).join('');
+  attachSwipeDelete(el, id => { State.souvenirs = State.souvenirs.filter(s => s.id !== id); store.set('souvenirs', State.souvenirs); renderSouvenirs(); });
 }
 
 /* ---------- スポット ---------- */
@@ -1324,7 +1395,7 @@ function renderSpots() {
   if (!list.length) {
     el.innerHTML = '<div class="empty">スポットがありません。宿泊先や行きたい場所を登録しておくと、リスク計算とルートに使えます。</div>';
   } else {
-    el.innerHTML = list.map(s => `<div class="item">
+    el.innerHTML = list.map(s => `<div class="item" data-swipe-id="${s.id}">
       <div style="font-size:20px">${esc(s.cat)}</div>
       <div class="body">
         <b>${esc(s.name)}</b>
@@ -1333,6 +1404,7 @@ function renderSpots() {
       <button class="icon-btn sp-show" data-id="${s.id}">表示</button>
       <button class="icon-btn sp-del" data-id="${s.id}" aria-label="削除">✕</button>
     </div>`).join('');
+    attachSwipeDelete(el, deleteSpot);
   }
   const opts = list.map(s => `<option value="${s.id}">${esc(s.cat + ' ' + s.name)}</option>`).join('');
   $('#svSpot').innerHTML = '<option value="">未設定</option>' + opts;
@@ -1340,6 +1412,13 @@ function renderSpots() {
   const here = '<option value="__here">現在地</option>';
   $('#routeFrom').innerHTML = here + opts;
   $('#routeTo').innerHTML = opts + here;
+}
+function deleteSpot(id) {
+  State.spots = State.spots.filter(s => s.id !== id);
+  store.set('spots', State.spots); renderSpots(); renderRiskDetail(); renderMapTab();
+  if (hazMap) syncHazardLayers();
+  if (placeMap) syncPlaceMarkers();
+  toast('削除しました');
 }
 
 /* ---------- 雨量パネル（今日のみ） ---------- */
@@ -1363,17 +1442,44 @@ function renderDosha() {
   renderRiskDetail();
   const v = State.now?.volcano;
   $('#volScaleWrap').hidden = !v;
-  if (v) $('#volScaleName').textContent = v.name;
+  if (v) {
+    $('#volScaleName').textContent = v.name;
+    const zoom = (v.lat != null) ? `9/${v.lat}/${v.lon}` : '5/35/140';
+    $('#volJmaLink2').href = `https://www.jma.go.jp/bosai/map.html#${zoom}/&elem=volcano&contents=volcano`;
+  }
 }
 
-function renderRiskDetail() {
+const spotRiskCache = {};
+async function ensureSpotRisk(spot) {
+  const cached = spotRiskCache[spot.id];
+  if (cached && (Date.now() - cached.fetchedAt) < 10 * 60 * 1000) return cached;
+  const region = nearestRegion(spot.lat, spot.lng);
+  const station = nearestAmedas(spot.lat, spot.lng);
+  const [amedas, warn] = await Promise.all([
+    fetchAmedasPoint(station?.id),
+    fetchWarnings(region.code)
+  ]);
+  const result = { amedas, warnings: warn.items, station: station?.kjName, fetchedAt: Date.now() };
+  spotRiskCache[spot.id] = result;
+  return result;
+}
+
+async function renderRiskDetail() {
   const id = $('#riskSpot').value;
   const spot = State.spots.find(s => s.id === id);
-  const r = riskParts(spot);
+  let override = null;
+  if (spot) {
+    $('#riskBreak').innerHTML = '<div class="empty">この地点のデータを取得中…</div>';
+    try { override = await ensureSpotRisk(spot); }
+    catch { toast('この地点のデータを取得できませんでした。現在地の値で表示します'); }
+    if ($('#riskSpot').value !== id) return; // 選択が変わっていれば結果を捨てる
+  }
+  const r = riskParts(spot, override);
   paintRisk(r.score, $('#riskLabel2'), $('#riskScore2'), $('#riskBar2'));
   const rows = r.parts.map(p => `<div class="op"><div class="nm"><b>${esc(p.k)}</b><span>${num(p.mm)}mm</span></div><span class="pill">+${p.p.toFixed(1)}</span></div>`).join('');
   const bonus = r.bonus ? `<div class="op"><div class="nm"><b>発表中の警報</b><span>${esc(r.why.join('・') || '—')}</span></div><span class="pill alert">+${r.bonus}</span></div>` : '';
-  $('#riskBreak').innerHTML = rows + bonus;
+  const src = override ? `<p class="sub" style="margin:8px 0 0">最寄り観測点: ${esc(override.station || '不明')}</p>` : '';
+  $('#riskBreak').innerHTML = rows + bonus + src;
 }
 
 /* ---------- 固定コンテンツ・設定 ---------- */
@@ -1394,10 +1500,6 @@ function renderStatics() {
     `<div class="tel"><div class="body"><b>${esc(t.n)}</b><span>${esc(t.s)}</span></div>
      <a href="tel:${esc(t.t)}">${esc(t.t.length > 3 ? t.t.replace(/^(\d{3})(\d{3})(\d+)$/, '$1-$2-$3') : t.t)}</a></div>`).join('');
 
-  const done = CFG.bag.filter(x => State.bag[x]).length;
-  $('#bagCount').textContent = `${done} / ${CFG.bag.length}`;
-  $('#bagList').innerHTML = CFG.bag.map(x =>
-    `<label class="check ${State.bag[x] ? 'done' : ''}"><input type="checkbox" class="bag-chk" data-k="${esc(x)}" ${State.bag[x] ? 'checked' : ''}><span>${esc(x)}</span></label>`).join('');
 
   $('#memo').value = store.get('memo', '');
   renderSnapshots();
@@ -1409,7 +1511,7 @@ function renderSnapshots() {
   const list = State.snapshots;
   $('#snapCount').textContent = list.length ? `${list.length}件` : '';
   if (!list.length) { el.innerHTML = '<div class="empty">保存済みの地点はありません</div>'; return; }
-  el.innerHTML = list.slice().sort((a,b) => b.savedAt.localeCompare(a.savedAt)).map(s => `<div class="item">
+  el.innerHTML = list.slice().sort((a,b) => b.savedAt.localeCompare(a.savedAt)).map(s => `<div class="item" data-swipe-id="${s.id}">
       <div style="font-size:20px">${s.auto ? '⟳' : '📍'}</div>
       <div class="body">
         <b>${esc(s.name)}${s.auto ? ' <span class="tag" style="font-weight:400">自動保存</span>' : ''}</b>
@@ -1418,6 +1520,13 @@ function renderSnapshots() {
       <button class="icon-btn snap-view" data-id="${s.id}">表示</button>
       <button class="icon-btn snap-del" data-id="${s.id}" aria-label="削除">✕</button>
     </div>`).join('');
+  attachSwipeDelete(el, deleteSnapshot);
+}
+function deleteSnapshot(id) {
+  State.snapshots = State.snapshots.filter(s => s.id !== id);
+  store.set('snapshots', State.snapshots);
+  renderSnapshots();
+  toast('削除しました');
 }
 
 async function renderCacheInfo() {
@@ -1759,7 +1868,7 @@ function syncPlaceMarkers() {
 }
 
 function renderMapTab() {
-  $('#routePanel').hidden = State.mapView !== 'route';
+  $('#routeControls').hidden = State.mapView !== 'route';
   const actions = $('#gmapActions');
 
   if (State.mapView === 'route') {
@@ -2009,15 +2118,11 @@ document.addEventListener('click', e => {
   const locItem = e.target.closest('#locResults .item');
   if (locItem) { chooseRegion(locItem.dataset.code); return; }
 
-  if (e.target.id === 'addSpotBtn') { openSpotDialog(); return; }
+  if (e.target.id === 'addSpotBtn' || e.target.id === 'addSpotBtn2') { openSpotDialog(); return; }
   const spShow = e.target.closest('.sp-show');
   if (spShow) { State.selectedSpot = spShow.dataset.id; State.mapView = 'place'; $$('#mapSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === 'place'))); renderMapTab(); showTab('map'); return; }
   const spDel = e.target.closest('.sp-del');
-  if (spDel) {
-    State.spots = State.spots.filter(s => s.id !== spDel.dataset.id);
-    store.set('spots', State.spots); renderSpots(); renderRiskDetail(); renderMapTab(); if (hazMap) syncHazardLayers(); if (placeMap) syncPlaceMarkers();
-    toast('削除しました'); return;
-  }
+  if (spDel) { deleteSpot(spDel.dataset.id); return; }
   if (e.target.id === 'exportSpotsBtn') {
     const blob = new Blob([JSON.stringify(State.spots, null, 1)], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'spots.json'; a.click();
@@ -2069,7 +2174,7 @@ document.addEventListener('click', e => {
   const snapView = e.target.closest('.snap-view');
   if (snapView) { viewSnapshot(snapView.dataset.id); return; }
   const snapDel = e.target.closest('.snap-del');
-  if (snapDel) { State.snapshots = State.snapshots.filter(s => s.id !== snapDel.dataset.id); store.set('snapshots', State.snapshots); renderSnapshots(); toast('削除しました'); return; }
+  if (snapDel) { deleteSnapshot(snapDel.dataset.id); return; }
 
   const imgThumb = e.target.closest('.img-cell img');
   if (imgThumb) { openLightbox(imgThumb.src); return; }
@@ -2091,7 +2196,6 @@ document.addEventListener('input', e => {
 
 document.addEventListener('change', e => {
   if (e.target.id === 'imgInput') { const f = e.target.files[0]; addImage(f); e.target.value = ''; return; }
-  if (e.target.classList.contains('bag-chk')) { State.bag[e.target.dataset.k] = e.target.checked; store.set('bag', State.bag); renderStatics(); return; }
   if (e.target.classList.contains('sv-chk')) {
     const s = State.souvenirs.find(x => x.id === e.target.dataset.id);
     if (s) { s.done = e.target.checked; store.set('souvenirs', State.souvenirs); renderSouvenirs(); }
