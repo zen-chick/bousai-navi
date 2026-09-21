@@ -1727,30 +1727,43 @@ async function renderTileInfo(group, el) {
    Leaflet 地図（雨雲レーダー／ハザードマップ）― 現在地を中心に再構築
    ===================================================================== */
 let rainMap = null, rainLayers = [], rainMapCenter = null;
-let rainOverlayLayer = null;
+let rainBaseLayer = null, rainOverlayLayer = null, rainFramesKey = '';
 let radarFrames = [], radarIdx = 0, radarPlaying = false, radarTimer = null;
 
 function buildRainMap() {
   const c = State.here ? [State.here.lat, State.here.lon] : [35.681, 139.767];
-  if (rainMap && rainMapCenter && rainMapCenter[0] === c[0] && rainMapCenter[1] === c[1]) {
-    rainMap.invalidateSize(); return;
+  const sameCenter = rainMap && rainMapCenter && rainMapCenter[0] === c[0] && rainMapCenter[1] === c[1];
+  const frames = State.now?.nowcast?.frames || [];
+  const framesKey = frames.map(f => f.validtime).join(',');
+
+  if (sameCenter) {
+    rainMap.invalidateSize();
+    if (framesKey !== rainFramesKey) applyRadarFrames(frames, framesKey);
+    return;
   }
   if (rainMap) { rainMap.remove(); rainMap = null; }
   stopRadarPlay();
   rainMapCenter = c;
   rainMap = L.map('rainMap', { center: c, zoom: 9, zoomControl: true, attributionControl: true });
-  const base = cachedLayer(CFG.gsiPale, { group: 'nowcast', saveTiles: false, maxZoom: 16, attribution: '国土地理院' });
-  base.addTo(rainMap);
-  rainOverlayLayer = null;
-  radarFrames = State.now?.nowcast?.frames || [];
+  rainBaseLayer = cachedLayer(CFG.gsiPale, { group: 'nowcast', saveTiles: false, maxZoom: 16, attribution: '国土地理院' });
+  rainBaseLayer.addTo(rainMap);
+  rainFramesKey = ''; // 強制的に反映させるため一旦リセット
+  applyRadarFrames(frames, framesKey);
+}
+function applyRadarFrames(frames, framesKey) {
+  radarFrames = frames;
   radarIdx = radarFrames.length - 1;
+  rainFramesKey = framesKey;
+  if (rainOverlayLayer) { rainMap.removeLayer(rainOverlayLayer); rainOverlayLayer = null; }
   if (radarFrames.length) {
     const f = radarFrames[radarIdx];
     const url = CFG.nowcast.replace('{base}', f.basetime).replace('{valid}', f.validtime);
     rainOverlayLayer = cachedLayer(url, { group: 'nowcast', saveTiles: false, opacity: .75, maxZoom: 10, maxNativeZoom: 10, attribution: '気象庁' });
     rainOverlayLayer.addTo(rainMap);
-    rainLayers = [base, rainOverlayLayer];
-  } else rainLayers = [base];
+    rainLayers = [rainBaseLayer, rainOverlayLayer];
+  } else {
+    rainLayers = [rainBaseLayer];
+  }
   renderRadarUI();
   renderTileInfo('nowcast', $('#rainTileInfo'));
 }
