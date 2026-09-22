@@ -283,9 +283,24 @@
     /* ── 雨雲レーダー 再生コントロール ── */
     .radar-ctrl { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
     .radar-ctrl button { width: 34px; height: 34px; border-radius: 50%; background: var(--red); color: #fff; font-size: 15px; flex-shrink: 0; }
-    .radar-ctrl .frames { flex: 1; height: 5px; background: #eee; border-radius: 3px; position: relative; }
-    .radar-ctrl .frames i#radarFramesBar { position: absolute; top: 0; bottom: 0; background: var(--red); border-radius: 3px; transition: left .25s; }
-    .radar-ctrl .frames i#radarNowMark { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text); opacity: .5; transform: translateX(-1px); }
+    .radar-ctrl .frames { flex: 1; position: relative; height: 22px; display: flex; align-items: center; }
+    .radar-ctrl .frames input[type=range] {
+      -webkit-appearance: none; appearance: none; width: 100%; height: 5px; border-radius: 3px;
+      outline: none; margin: 0; background: #eee; cursor: pointer;
+    }
+    .radar-ctrl .frames input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%;
+      background: var(--red); border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.4); cursor: pointer;
+    }
+    .radar-ctrl .frames input[type=range]::-moz-range-thumb {
+      width: 15px; height: 15px; border-radius: 50%; background: var(--red); border: 2px solid #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,.4); cursor: pointer;
+    }
+    .radar-ctrl .frames input[type=range]::-moz-range-track { height: 5px; border-radius: 3px; background: #eee; }
+    .radar-ctrl .frames i#radarNowMark {
+      position: absolute; top: 3px; bottom: 3px; width: 2px; background: var(--text); opacity: .45;
+      transform: translateX(-1px); pointer-events: none;
+    }
     .radar-ctrl .time { font-size: 11px; color: var(--muted); min-width: 108px; text-align: right; }
 
     /* ── 画像保存（時刻表など） ── */
@@ -442,7 +457,7 @@
     <div class="mapwrap"><div class="leafletmap" id="rainMap"></div></div>
     <div class="radar-ctrl">
       <button id="radarPlay">▶</button>
-      <div class="frames" id="radarFrames"><i id="radarFramesBar" style="left:0;width:16.6%"></i><i id="radarNowMark" style="display:none;left:50%"></i></div>
+      <div class="frames" id="radarFrames"><input type="range" id="radarSeek" min="0" max="0" step="1" value="0"><i id="radarNowMark" style="display:none;left:50%"></i></div>
       <span class="time" id="nowcastTime">—</span>
     </div>
     <p class="sub" style="margin:4px 0 0">縦線が「現在」の位置。左が実況（過去）、右が予報です。</p>
@@ -1792,11 +1807,16 @@ function renderRadarUI() {
   const btn = $('#radarPlay');
   if (btn) btn.textContent = radarPlaying ? '⏸' : '▶';
   const n = radarFrames.length;
-  const bar = $('#radarFramesBar');
-  if (bar && n > 1) { bar.style.width = (100 / n) + '%'; bar.style.left = (radarIdx / n * 100) + '%'; }
+  const seek = $('#radarSeek');
+  if (seek) {
+    seek.max = String(Math.max(0, n - 1));
+    seek.value = String(radarIdx);
+    const pct = n > 1 ? (radarIdx / (n - 1) * 100) : 0;
+    seek.style.background = `linear-gradient(to right, var(--red) ${pct}%, #eee ${pct}%)`;
+  }
   const nowMark = $('#radarNowMark');
   if (nowMark) {
-    if (n > 1 && radarNowIdx >= 0) { nowMark.style.left = ((radarNowIdx + 1) / n * 100) + '%'; nowMark.style.display = 'block'; }
+    if (n > 1 && radarNowIdx >= 0) { nowMark.style.left = (radarNowIdx / (n - 1) * 100) + '%'; nowMark.style.display = 'block'; }
     else nowMark.style.display = 'none';
   }
   const t = $('#nowcastTime');
@@ -2249,6 +2269,10 @@ document.addEventListener('click', e => {
 
 document.addEventListener('input', e => {
   if (e.target.id === 'locSearch') renderLocResults(e.target.value);
+  if (e.target.id === 'radarSeek') {
+    if (radarPlaying) stopRadarPlay();
+    setRadarFrame(parseInt(e.target.value, 10));
+  }
 });
 
 document.addEventListener('change', e => {
