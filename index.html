@@ -1164,8 +1164,9 @@ async function fetchNowcastTimes() {
       ? n2.filter(x => !lastObservedValid || x.validtime > lastObservedValid)
           .map(x => ({ basetime: x.basetime, validtime: x.validtime, future: true }))
       : [];
-    out.frames = [...past, ...forecast];
-    out.nowIdx = past.length - 1; // 実況の最後＝「現在」の位置
+    out.frames = [...past, ...forecast].sort((a, b) => a.validtime.localeCompare(b.validtime));
+    out.nowIdx = -1;
+    out.frames.forEach((f, idx) => { if (!f.future) out.nowIdx = idx; }); // 実況の最後＝「現在」の位置
     if (out.frames.length) {
       const last = past.length ? past[past.length - 1] : out.frames[0];
       out.basetime = last.basetime; out.validtime = last.validtime;
@@ -1781,10 +1782,23 @@ function buildRainMap() {
   applyRadarFrames(frames, framesKey, nc?.nowIdx ?? -1);
 }
 function applyRadarFrames(frames, framesKey, nowIdx) {
+  const prevFrame = radarFrames[radarIdx]; // 更新前に表示していたコマ（あれば時間軸を維持する）
   radarFrames = frames;
   radarNowIdx = nowIdx >= 0 && nowIdx < frames.length ? nowIdx : frames.length - 1;
-  radarIdx = radarNowIdx;
   rainFramesKey = framesKey;
+
+  if (prevFrame && frames.length) {
+    // 直前に見ていた時刻に最も近いコマを探して、そこから続きを表示する（現在地点への巻き戻りを防ぐ）
+    let bestI = radarNowIdx, bestD = Infinity;
+    frames.forEach((f, i) => {
+      const d = Math.abs(Number(f.validtime) - Number(prevFrame.validtime));
+      if (d < bestD) { bestD = d; bestI = i; }
+    });
+    radarIdx = bestI;
+  } else {
+    radarIdx = radarNowIdx;
+  }
+
   if (rainOverlayLayer) { rainMap.removeLayer(rainOverlayLayer); rainOverlayLayer = null; }
   if (radarFrames.length) {
     const f = radarFrames[radarIdx];
